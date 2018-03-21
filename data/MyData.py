@@ -5,7 +5,7 @@ https://github.com/fmassa/vision/blob/voc_dataset/torchvision/datasets/voc.py
 
 Updated by: Ellis Brown, Max deGroot
 
-Undated by: Wyn Mew
+undated by Wyn Mew
 """
 
 import os
@@ -80,8 +80,14 @@ class AnnotationTransform(object):
                 cur_pt = cur_pt / width if i % 2 == 0 else cur_pt / height
                 bndbox.append(cur_pt)
             label_idx = self.class_to_ind[name]
+            label1 = int(label_idx / 6)
+            label2 = label_idx % 6
             #print(label_idx)
-            bndbox.append(label_idx)
+            #print(label1)
+            #print(label2)
+            # label transform
+            bndbox.append(label1) # 0 ~ 5
+            bndbox.append(label2) # 0 ~ 5
             res += [bndbox]  # [xmin, ymin, xmax, ymax, label_ind]
             # img_id = target.find('filename').text[:-4]
 
@@ -104,6 +110,8 @@ class vm169Detection(data.Dataset):
         dataset_name (string, optional): which dataset to load
             (default: 'VOC2007')
     """
+    #dataset = vm169Detection(vm169root, train_sets, SSDAugmentation(
+    #    ssd_dim, means), AnnotationTransform())
 
     def __init__(self, root, image_sets, transform=None, target_transform=None,
                  dataset_name='vm169'):
@@ -117,7 +125,7 @@ class vm169Detection(data.Dataset):
         self.ids = list()
         for (name) in image_sets:
             rootpath = os.path.join(self.root)
-            for line in open(os.path.join(rootpath, dataset_name,'annotation', name)):
+            for line in open(os.path.join(name)):
                 self.ids.append((rootpath, line.strip()))
 
     def __getitem__(self, index):
@@ -146,11 +154,11 @@ class vm169Detection(data.Dataset):
 
         if self.transform is not None:
             target = np.array(target)
-            img, boxes, labels = self.transform(img, target[:, :4], target[:, 4])
+            img, boxes, label1, label2 = self.transform(img, target[:, :4],target[:, 4], target[:, 5])
             # to rgb
             img = img[:, :, (2, 1, 0)]
             # img = img.transpose(2, 0, 1)
-            target = np.hstack((boxes, np.expand_dims(labels, axis=1)))
+            target = np.hstack((boxes, np.expand_dims(label1, axis=1), np.expand_dims(label2, axis=1)))
         return torch.from_numpy(img).permute(2, 0, 1), target, height, width
         # return torch.from_numpy(img), target, height, width
 
@@ -165,7 +173,13 @@ class vm169Detection(data.Dataset):
         Return:
             PIL img
         '''
-        img_id = self.ids[index]
+        img_rid = self.ids[index]
+        # print(img_rid)
+        imgstr = img_rid[1].split('\t')
+        img_id = []
+        img_id.append(img_rid[0])
+        img_id.append(imgstr[0])
+        img_id.append(imgstr[1])
         return cv2.imread(self._imgpath % (img_id[0], img_id[1], img_id[2]), cv2.IMREAD_COLOR)
 
     def pull_anno(self, index):
@@ -180,7 +194,13 @@ class vm169Detection(data.Dataset):
             list:  [img_id, [(label, bbox coords),...]]
                 eg: ('001718', [('dog', (96, 13, 438, 332))])
         '''
-        img_id = self.ids[index]
+        img_rid = self.ids[index]
+        # print(img_rid)
+        imgstr = img_rid[1].split('\t')
+        img_id = []
+        img_id.append(img_rid[0])
+        img_id.append(imgstr[0])
+        img_id.append(imgstr[1])
         anno = ET.parse(self._annopath % (img_id[0], img_id[1], img_id[2])).getroot()
         gt = self.target_transform(anno, 1, 1)
         return img_id[1], gt
@@ -219,12 +239,14 @@ def detection_collate(batch):
     return torch.stack(imgs, 0), targets
 
 '''
-from augmentations import SSDAugmentation
+from utils.augmentations import SSDAugmentation
 train_sets = [('WynTrain30')]
 ssd_dim = 300  # only support 300 now
 means = (104, 117, 123)  # only support voc now
 vm169root='/home/chenli/Documents/data'
 dataset = vm169Detection(vm169root, train_sets, SSDAugmentation(
         ssd_dim, means), AnnotationTransform())
+dataset.pull_item(1)
         
+#testset = vm169Detection(args.vm169_root, [('WynTest30')], None, AnnotationTransform())
 '''
