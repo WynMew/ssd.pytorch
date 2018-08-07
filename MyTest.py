@@ -69,7 +69,7 @@ def test_net(save_folder, net, cuda, testset, transform, thresh):
                 coords = (pt[0], pt[1], pt[2], pt[3])
                 pred_num += 1
                 with open(filename, mode='a') as f:
-                    f.write(str(pred_num)+' label: '+ str(i) +' score: ' +
+                    f.write(str(pred_num)+' label: '+ str(i - 1) +' score: ' +
                             str(score) + ' '+' || '.join(str(c) for c in coords) + '\n')
                 j += 1
 
